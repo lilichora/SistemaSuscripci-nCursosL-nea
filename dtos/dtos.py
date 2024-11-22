@@ -1,29 +1,50 @@
-
-from dataclasses import dataclass
-from typing import Optional, List
-
-# DTO for User
-@dataclass
 class UserDTO:
-    id: Optional[int] = None
-    first_name: str = ""
-    last_name: str = ""
-    email: str = ""
-    user_type: str = ""  # 'admin', 'creator', 'consumer'
+    def __init__(self, user):
+        self.id = user.id
+        self.first_name = user.first_name
+        self.last_name = user.last_name
+        self.email = user.email
+        self.user_type = user.user_type
 
-# DTO for Course
-@dataclass
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "email": self.email,
+            "user_type": self.user_type
+        }
+
+
 class CourseDTO:
-    id: Optional[int] = None
-    name: str = ""
-    description: Optional[str] = None
-    state: str = "en_construccion"  # 'en_construccion', 'activo', 'inactivo'
-    creator_id: int = 0
+    def __init__(self, course):
+        self.id = course.id
+        self.name = course.name
+        self.description = course.description
+        self.state = course.state
+        self.creator_id = course.creator_id
 
-# DTO for Subscription
-@dataclass
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "state": self.state,
+            "creator_id": self.creator_id
+        }
+
+
 class SubscriptionDTO:
-    id: Optional[int] = None
-    user_id: int = 0
-    course_id: int = 0
-    subscription_date: Optional[str] = None  # Use ISO format for date
+    def __init__(self, subscription):
+        self.id = subscription.id
+        self.user_id = subscription.user_id
+        self.course_id = subscription.course_id
+        self.subscription_date = subscription.subscription_date.isoformat()
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "course_id": self.course_id,
+            "subscription_date": self.subscription_date
+        }

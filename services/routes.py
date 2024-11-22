@@ -1,12 +1,11 @@
-
 from flask import Blueprint, request, jsonify
 from models import db, User, Course, Subscription
 from dtos.dtos import UserDTO, CourseDTO, SubscriptionDTO
 from datetime import datetime
 
-app = Blueprint('services', __name__)
+app = Blueprint('routes', __name__)
 
-# User Management Routes
+# User Management Endpoints
 @app.route('/users', methods=['POST'])
 def create_user():
     data = request.json
@@ -19,11 +18,13 @@ def create_user():
     )
     db.session.add(new_user)
     db.session.commit()
-    return jsonify({"message": "User created successfully"}), 201
+
+    user_dto = UserDTO(new_user)
+    return jsonify(user_dto.to_dict()), 201
 
 
 @app.route('/users/<int:user_id>', methods=['PUT'])
-def modify_user(user_id):
+def update_user(user_id):
     user = User.query.get_or_404(user_id)
     data = request.json
     user.first_name = data.get('first_name', user.first_name)
@@ -32,7 +33,9 @@ def modify_user(user_id):
     user.password = data.get('password', user.password)
     user.user_type = data.get('user_type', user.user_type)
     db.session.commit()
-    return jsonify({"message": "User updated successfully"}), 200
+
+    user_dto = UserDTO(user)
+    return jsonify(user_dto.to_dict()), 200
 
 
 @app.route('/users/<int:user_id>', methods=['DELETE'])
@@ -43,32 +46,41 @@ def delete_user(user_id):
     return jsonify({"message": "User deleted successfully"}), 200
 
 
+@app.route('/users/<int:user_id>', methods=['GET'])
+def get_user(user_id):
+    user = User.query.get_or_404(user_id)
+    user_dto = UserDTO(user)
+    return jsonify(user_dto.to_dict()), 200
+
+
+# Course Management Endpoints
 @app.route('/courses', methods=['POST'])
 def create_course():
     data = request.json
-    active_courses = Course.query.filter_by(creator_id=data['creator_id'], state='activo').count()
-    if active_courses >= 2:
-        return jsonify({"error": "Creators can only have 2 active courses at a time"}), 400
     new_course = Course(
         name=data['name'],
-        description=data.get('description', ""),
+        description=data['description'],
         state=data.get('state', 'en_construccion'),
         creator_id=data['creator_id']
     )
     db.session.add(new_course)
     db.session.commit()
-    return jsonify({"message": "Course created successfully"}), 201
+
+    course_dto = CourseDTO(new_course)
+    return jsonify(course_dto.to_dict()), 201
 
 
 @app.route('/courses/<int:course_id>', methods=['PUT'])
-def modify_course(course_id):
+def update_course(course_id):
     course = Course.query.get_or_404(course_id)
     data = request.json
     course.name = data.get('name', course.name)
     course.description = data.get('description', course.description)
     course.state = data.get('state', course.state)
     db.session.commit()
-    return jsonify({"message": "Course updated successfully"}), 200
+
+    course_dto = CourseDTO(course)
+    return jsonify(course_dto.to_dict()), 200
 
 
 @app.route('/courses/<int:course_id>', methods=['DELETE'])
@@ -79,27 +91,17 @@ def delete_course(course_id):
     return jsonify({"message": "Course deleted successfully"}), 200
 
 
-@app.route('/courses/<int:course_id>/state', methods=['PATCH'])
-def change_course_state(course_id):
+@app.route('/courses/<int:course_id>', methods=['GET'])
+def get_course(course_id):
     course = Course.query.get_or_404(course_id)
-    data = request.json
-    course.state = data['state']
-    db.session.commit()
-    return jsonify({"message": "Course state updated successfully"}), 200
+    course_dto = CourseDTO(course)
+    return jsonify(course_dto.to_dict()), 200
 
 
+# Subscription Management Endpoints
 @app.route('/subscriptions', methods=['POST'])
-def subscribe_to_course():
+def subscribe():
     data = request.json
-    existing_subscription = Subscription.query.filter_by(user_id=data['user_id'], course_id=data['course_id']).first()
-    if existing_subscription:
-        return jsonify({"error": "User is already subscribed to this course"}), 400
-    subscriptions_from_creator = Subscription.query.filter(
-        Subscription.user_id == data['user_id'],
-        Subscription.course.has(creator_id=Course.query.get(data['course_id']).creator_id)
-    ).count()
-    if subscriptions_from_creator > 0:
-        return jsonify({"error": "User can only subscribe to one course per creator"}), 400
     new_subscription = Subscription(
         user_id=data['user_id'],
         course_id=data['course_id'],
@@ -107,24 +109,26 @@ def subscribe_to_course():
     )
     db.session.add(new_subscription)
     db.session.commit()
-    return jsonify({"message": "Subscription created successfully"}), 201
+
+    subscription_dto = SubscriptionDTO(new_subscription)
+    return jsonify(subscription_dto.to_dict()), 201
 
 
-@app.route('/subscriptions/<int:user_id>/<int:course_id>', methods=['DELETE'])
-def cancel_subscription(user_id, course_id):
-    subscription = Subscription.query.filter_by(user_id=user_id, course_id=course_id).first_or_404()
+@app.route('/subscriptions/<int:subscription_id>', methods=['DELETE'])
+def cancel_subscription(subscription_id):
+    subscription = Subscription.query.get_or_404(subscription_id)
     db.session.delete(subscription)
     db.session.commit()
     return jsonify({"message": "Subscription canceled successfully"}), 200
 
 
-@app.route('/subscriptions/<int:user_id>/<int:course_id>', methods=['GET'])
-def get_subscription(user_id, course_id):
-    subscription = Subscription.query.filter_by(user_id=user_id, course_id=course_id).first_or_404()
-    subscription_dto = SubscriptionDTO(
-        id=subscription.id,
-        user_id=subscription.user_id,
-        course_id=subscription.course_id,
-        subscription_date=subscription.subscription_date.isoformat()
-    )
-    return jsonify(subscription_dto.__dict__), 200
+@app.route('/subscriptions/<int:subscription_id>', methods=['GET'])
+def get_subscription(subscription_id):
+    subscription = Subscription.query.get_or_404(subscription_id)
+    subscription_dto = SubscriptionDTO(subscription)
+    return jsonify(subscription_dto.to_dict()), 200
+
+
+@app.route('/', methods=['GET'])
+def home():
+    return jsonify({"message": "Welcome to the API"}), 200
